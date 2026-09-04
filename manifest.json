@@ -1,0 +1,10 @@
+{
+  "id": "plain-calendar",
+  "name": "Plain Calendar",
+  "version": "1.1.0",
+  "minAppVersion": "1.12.0",
+  "description": "A minimal, Outlook-style calendar (day/week/month/year) for your own event notes - no pomodoro, no time-tracking.",
+  "author": "Jan Schikorr",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}
