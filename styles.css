@@ -50,7 +50,7 @@
 	cursor: pointer;
 	border: none;
 	border-radius: 0;
-	background-color: var(--background-primary);
+	background-color: var(--background-secondary);
 	color: var(--text-normal);
 	box-shadow: none;
 	margin: 0;
