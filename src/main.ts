@@ -1404,6 +1404,33 @@ class CalendarView extends ItemView {
 		menu.showAtMouseEvent(e);
 	}
 
+	// Year view's mini-day cells don't render a chip per occurrence (just a
+	// dot), so a right click needs to offer edit/delete for every occurrence
+	// on that day at once instead of targeting a single element.
+	private showDayContextMenu(e: MouseEvent, occs: Occurrence[]) {
+		if (occs.length === 0) return;
+		e.preventDefault();
+		e.stopPropagation();
+		const menu = new Menu();
+		occs.forEach((occ, i) => {
+			if (i > 0) menu.addSeparator();
+			const label = eventLabel(occ.display, { withTime: true, isException: occ.kind === "exception" });
+			menu.addItem((item) =>
+				item
+					.setTitle(`${t("edit")}: ${label}`)
+					.setIcon("pencil")
+					.onClick(() => this.editOccurrence(occ))
+			);
+			menu.addItem((item) =>
+				item
+					.setTitle(`${t("delete")}: ${label}`)
+					.setIcon("trash")
+					.onClick(() => this.deleteOccurrence(occ))
+			);
+		});
+		menu.showAtMouseEvent(e);
+	}
+
 	private setMode(mode: ViewMode) {
 		this.mode = mode;
 		this.render();
@@ -1655,12 +1682,31 @@ class CalendarView extends ItemView {
 				const belongsToMonth = d.getMonth() === m;
 				if (!belongsToMonth) cell.addClass("is-muted");
 				if (belongsToMonth && isSameDay(d, new Date())) cell.addClass("is-today");
-				if (this.occurrencesFor(d).length > 0) cell.addClass("has-events");
+				const occs = this.occurrencesFor(d);
+				if (occs.length > 0) cell.addClass("has-events");
 				cell.setText(String(d.getDate()));
+
+				// Single click creates an event; double click still jumps to
+				// the day view. A short delay tells them apart - without it,
+				// a double click would also fire the single-click handler
+				// twice and open the new-event dialog before navigating away.
+				let clickTimer: number | null = null;
 				cell.onclick = () => {
+					if (clickTimer !== null) return;
+					clickTimer = window.setTimeout(() => {
+						clickTimer = null;
+						this.createEvent(d);
+					}, 250);
+				};
+				cell.ondblclick = () => {
+					if (clickTimer !== null) {
+						window.clearTimeout(clickTimer);
+						clickTimer = null;
+					}
 					this.anchor = d;
 					this.setMode("day");
 				};
+				cell.oncontextmenu = (e) => this.showDayContextMenu(e, occs);
 			}
 		}
 	}
