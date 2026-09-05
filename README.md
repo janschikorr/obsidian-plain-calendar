@@ -19,6 +19,7 @@ Existing calendar plugins tend to come bundled with task management, pomodoro ti
 - 🔁 **Recurring events** — daily/weekly/monthly/yearly, with an optional interval, end date, or occurrence count, plus Outlook-style handling of single-occurrence exceptions
 - 🎛️ Native date/time pickers and Obsidian's own dialog styling throughout — nothing feels bolted on
 - 🌗 Follows Obsidian's theme (light/dark, accent color) and language setting (German/English UI; more languages can be added easily)
+- 🎂☑️ **Optional virtual entries from sister plugins** — birthdays from [Plain Contacts](https://github.com/janschikorr/obsidian-plain-contacts) and tasks with a due date from [Plain Tasks](https://github.com/janschikorr/obsidian-plain-tasks), shown as dashed, read-only chips alongside your own events (see below)
 
 ## 📦 Installation
 
@@ -103,9 +104,14 @@ Editing or deleting an occurrence from the calendar asks what the change applies
 - 📁 **Folder for event notes** — where event notes are stored (default: `Calendar`)
 - 🏷️ **Tag for events** — the frontmatter tag that marks a note as an event (default: `event`)
 
-## 🗺️ Roadmap
+## 🎂☑️ Virtual entries from sister plugins
 
-- Optionally show tasks from other task-management plugins alongside events
+If [Plain Contacts](https://github.com/janschikorr/obsidian-plain-contacts) and/or [Plain Tasks](https://github.com/janschikorr/obsidian-plain-tasks) are installed and enabled, Plain Calendar can optionally show their data as read-only entries in every view, controlled by a setting in *their* settings tab (off by default):
+
+- 🎂 **Birthdays** (Plain Contacts → "Show birthdays in calendar") — every contact's `birthdate` (both `YYYY-MM-DD` and `--MM-DD` unknown-year notation), recurring every year on the same day/month, independently of this plugin's own recurrence model
+- ☑️ **Tasks** (Plain Tasks → "Show tasks in calendar") — every task with a `due` date, shown on that exact date; a recurring task's series isn't expanded, only its own stored `due` date shows up
+
+These entries are dashed chips, visually distinct from real events, and read-only: clicking one opens the source note directly, there's no edit dialog, and they can't be dragged, resized, or deleted from the calendar. They also don't count towards - or interact with - this plugin's own recurring-event series/exception model; it's a separate, parallel display layer read live from the other plugin's settings and notes (`app.plugins.plugins["plain-contacts"]` / `["plain-tasks"]`), never written to.
 
 ## 📄 License
 

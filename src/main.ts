@@ -270,12 +270,103 @@ function occurrencesOn(events: CalendarEvent[], index: SeriesIndex, d: Date): Oc
 	return result;
 }
 
+// --- Virtual entries from sister plugins (plain-contacts / plain-tasks) ---
+//
+// Read-only display layer, deliberately separate from CalendarEvent/
+// Occurrence/SeriesIndex above: virtual entries are never edited, moved, or
+// deleted from this plugin, so they don't need a "kind" in that model, no
+// series/exception handling, and no frontmatter of their own. They're only
+// ever read from the other plugin's notes and, on click, open the source
+// file - see wireVirtualEntryElement.
+
+// The subset of another plugin's settings this plugin actually reads.
+// Neither `app.plugins` nor a specific sister plugin's settings shape is
+// part of Obsidian's public API - both are read defensively (every step
+// optional-chained) so a missing/not-yet-loaded/differently-shaped plugin
+// never throws, it just yields no virtual entries.
+interface ContactsPluginSettings {
+	folder?: string;
+	typeValue?: string;
+	showInCalendar?: boolean;
+}
+
+interface TasksPluginSettings {
+	tasksFolder?: string;
+	taskTag?: string;
+	showInCalendar?: boolean;
+}
+
+function getExternalPluginSettings<T>(app: App, pluginId: string): T | undefined {
+	const plugins = (app as unknown as { plugins?: { plugins?: Record<string, { settings?: unknown }> } }).plugins
+		?.plugins;
+	return plugins?.[pluginId]?.settings as T | undefined;
+}
+
+// Same "YYYY-MM-DD" | "--MM-DD" (ISO unknown-year notation) parsing as
+// plain-contacts' parseBirthdateMonthDay - duplicated rather than imported
+// since these are separate plugin bundles (obsidian is external, sister
+// plugins are not a shared dependency).
+function parseBirthdateMonthDay(raw: string): { month: number; day: number } | null {
+	const match = raw.match(/^(?:\d{4}-|--)(\d{2})-(\d{2})$/);
+	if (!match) return null;
+	const month = Number(match[1]);
+	const day = Number(match[2]);
+	if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+	return { month, day };
+}
+
+interface VirtualBirthdayEntry {
+	title: string;
+	month: number;
+	day: number;
+	sourcePath: string;
+}
+
+interface VirtualTaskEntry {
+	title: string;
+	date: string; // YYYY-MM-DD, the task's own `due` value, not expanded for recurring tasks
+	sourcePath: string;
+}
+
+interface VirtualEntry {
+	kind: "birthday" | "task";
+	title: string;
+	sourcePath: string;
+}
+
+// Birthdays recur every year on the same month/day (both `YYYY-MM-DD` and
+// `--MM-DD` birthdates), matched independently of the RRULE-lite recurrence
+// machinery above - a parallel, much simpler rule that only this display
+// layer needs. Tasks aren't expanded at all: a recurring task's `due` is
+// just its own stored date, same as any other task, see VirtualTaskEntry.
+function virtualEntriesOn(d: Date, birthdays: VirtualBirthdayEntry[], tasks: VirtualTaskEntry[]): VirtualEntry[] {
+	const key = toDateKey(d);
+	const month = d.getMonth() + 1;
+	const day = d.getDate();
+	const result: VirtualEntry[] = [];
+	for (const b of birthdays) {
+		if (b.month === month && b.day === day) result.push({ kind: "birthday", title: b.title, sourcePath: b.sourcePath });
+	}
+	for (const task of tasks) {
+		if (task.date === key) result.push({ kind: "task", title: task.title, sourcePath: task.sourcePath });
+	}
+	return result;
+}
+
 // Chip/block label, with a small marker for recurring events and a
 // different one for a single materialized exception of a series.
 function eventLabel(ev: CalendarEvent, opts: { withTime?: boolean; isException?: boolean } = {}): string {
 	const prefix = opts.isException ? "» " : ev.recurrence ? "↻ " : "";
 	const time = opts.withTime && ev.time ? `${ev.time} ` : "";
 	return `${prefix}${time}${ev.title}`;
+}
+
+// Fixed emoji markers (not translated) distinguishing a virtual entry's
+// origin plugin at a glance - same visual language as the 🎂/☑️ used
+// elsewhere in this vault's own notes.
+function virtualEntryLabel(entry: VirtualEntry): string {
+	const icon = entry.kind === "birthday" ? "🎂" : "☑️";
+	return `${icon} ${entry.title}`;
 }
 
 const HOUR_PX = 48;
@@ -903,6 +994,11 @@ class CalendarView extends ItemView {
 	anchor: Date = new Date();
 	private events: CalendarEvent[] = [];
 	private seriesIndex: SeriesIndex = { exceptionsBySeriesDate: new Map(), exceptionsBySeries: new Map(), mastersByPath: new Map() };
+	// Virtual, read-only entries from sister plugins - see "Virtual entries
+	// from sister plugins" above. Empty unless the respective plugin is
+	// installed, enabled, and has its "show in calendar" setting on.
+	private virtualBirthdays: VirtualBirthdayEntry[] = [];
+	private virtualTasks: VirtualTaskEntry[] = [];
 
 	constructor(leaf: WorkspaceLeaf, plugin: PlainCalendarPlugin) {
 		super(leaf);
@@ -955,6 +1051,109 @@ class CalendarView extends ItemView {
 		});
 
 		return events;
+	}
+
+	// Reads people/*.md via plain-contacts' own settings (folder, type value,
+	// opt-in toggle) - returns [] if plain-contacts isn't installed/enabled or
+	// its "show birthdays in calendar" setting is off. Read-only: never
+	// writes to plain-contacts' notes or settings.
+	private loadVirtualBirthdays(): VirtualBirthdayEntry[] {
+		const settings = getExternalPluginSettings<ContactsPluginSettings>(this.app, "plain-contacts");
+		if (!settings?.showInCalendar) return [];
+
+		const folder = normalizePath(settings.folder || "people");
+		const typeValue = settings.typeValue || "person";
+		const entries: VirtualBirthdayEntry[] = [];
+
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			if (!file.path.startsWith(folder + "/") && file.path !== folder) continue;
+			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as
+				| { type?: string; title?: string; birthdate?: string }
+				| undefined;
+			if (!fm || fm.type !== typeValue) continue;
+
+			const parsed = parseBirthdateMonthDay(fm.birthdate ? String(fm.birthdate) : "");
+			if (!parsed) continue;
+
+			entries.push({
+				title: fm.title ? String(fm.title) : file.basename,
+				month: parsed.month,
+				day: parsed.day,
+				sourcePath: file.path,
+			});
+		}
+
+		return entries;
+	}
+
+	// Reads Tasks/*.md via plain-tasks' own settings (folder, tag, opt-in
+	// toggle) - returns [] if plain-tasks isn't installed/enabled or its
+	// "show tasks in calendar" setting is off. Only tasks with a `due` date
+	// are shown, at that exact date - a recurring task's series isn't
+	// expanded here, see VirtualTaskEntry. Read-only: never writes to
+	// plain-tasks' notes or settings.
+	private loadVirtualTasks(): VirtualTaskEntry[] {
+		const settings = getExternalPluginSettings<TasksPluginSettings>(this.app, "plain-tasks");
+		if (!settings?.showInCalendar) return [];
+
+		const folder = normalizePath(settings.tasksFolder || "Tasks");
+		const tag = settings.taskTag || "task";
+		const entries: VirtualTaskEntry[] = [];
+
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			if (!file.path.startsWith(folder + "/") && file.path !== folder) continue;
+			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as
+				| { tags?: string | string[]; title?: string; due?: string }
+				| undefined;
+			if (!fm || !fm.due) continue;
+
+			const tags = Array.isArray(fm.tags) ? fm.tags : fm.tags ? [fm.tags] : [];
+			if (tag && !tags.includes(tag)) continue;
+
+			entries.push({
+				title: fm.title ? String(fm.title) : file.basename,
+				date: String(fm.due).slice(0, 10),
+				sourcePath: file.path,
+			});
+		}
+
+		return entries;
+	}
+
+	private virtualEntriesFor(d: Date): VirtualEntry[] {
+		return virtualEntriesOn(d, this.virtualBirthdays, this.virtualTasks);
+	}
+
+	// Opens the source note of a virtual entry - the only interaction a
+	// virtual entry supports, deliberately no edit modal (see
+	// wireVirtualEntryElement): these are owned by another plugin's notes,
+	// not this plugin's event notes.
+	private async openVirtualSource(entry: VirtualEntry) {
+		const file = this.app.vault.getAbstractFileByPath(entry.sourcePath);
+		if (file instanceof TFile) await this.app.workspace.getLeaf(false).openFile(file);
+	}
+
+	// Click opens the source note directly (no edit modal, unlike
+	// wireOccurrenceElement); right click offers the same as a minimal,
+	// non-editable context menu - visually distinguished via
+	// plain-calendar-virtual-* classes, see styles.css.
+	private wireVirtualEntryElement(el: HTMLElement, entry: VirtualEntry) {
+		el.onclick = (e) => {
+			e.stopPropagation();
+			this.openVirtualSource(entry);
+		};
+		el.oncontextmenu = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			const menu = new Menu();
+			menu.addItem((item) =>
+				item
+					.setTitle(t("openNote"))
+					.setIcon("file-text")
+					.onClick(() => this.openVirtualSource(entry))
+			);
+			menu.showAtMouseEvent(e);
+		};
 	}
 
 	// Creates the target folder if it's missing. Only swallows the harmless
@@ -1411,7 +1610,7 @@ class CalendarView extends ItemView {
 	// occurrence on that date if there are any. Year view's mini-days don't
 	// render a chip per occurrence (just a dot), so this lists all of them
 	// rather than targeting one specific element like showEventContextMenu.
-	private showDayContextMenu(e: MouseEvent, d: Date, occs: Occurrence[]) {
+	private showDayContextMenu(e: MouseEvent, d: Date, occs: Occurrence[], virtualEntries: VirtualEntry[] = []) {
 		e.preventDefault();
 		e.stopPropagation();
 		const menu = new Menu();
@@ -1441,6 +1640,20 @@ class CalendarView extends ItemView {
 					.onClick(() => this.deleteOccurrence(occ))
 			);
 		});
+
+		// Virtual entries (birthdays/tasks from sister plugins) only ever
+		// offer "open note" - no edit/delete, they aren't owned by this
+		// plugin, see wireVirtualEntryElement.
+		virtualEntries.forEach((entry) => {
+			menu.addSeparator();
+			menu.addItem((item) =>
+				item
+					.setTitle(`${t("openNote")}: ${virtualEntryLabel(entry)}`)
+					.setIcon("file-text")
+					.onClick(() => this.openVirtualSource(entry))
+			);
+		});
+
 		menu.showAtMouseEvent(e);
 	}
 
@@ -1470,6 +1683,8 @@ class CalendarView extends ItemView {
 
 		this.events = this.loadEvents();
 		this.seriesIndex = buildSeriesIndex(this.events);
+		this.virtualBirthdays = this.loadVirtualBirthdays();
+		this.virtualTasks = this.loadVirtualTasks();
 
 		const toolbar = container.createDiv({ cls: "plain-calendar-toolbar" });
 
@@ -1543,9 +1758,9 @@ class CalendarView extends ItemView {
 	// modal that a single click opens immediately covers the cell and
 	// swallows the second click before it arrives. Shared by month-view day
 	// cells and year-view mini-days.
-	private wireDayCellNavigation(cell: HTMLElement, d: Date, occs: Occurrence[]) {
+	private wireDayCellNavigation(cell: HTMLElement, d: Date, occs: Occurrence[], virtualCount = 0) {
 		cell.onclick = () => {
-			if (occs.length > 1) {
+			if (occs.length + virtualCount > 1) {
 				this.anchor = d;
 				this.setMode("day");
 			} else {
@@ -1560,7 +1775,8 @@ class CalendarView extends ItemView {
 		if (isSameDay(d, new Date())) cell.addClass("is-today");
 
 		const occs = this.occurrencesFor(d);
-		this.wireDayCellNavigation(cell, d, occs);
+		const virtual = this.virtualEntriesFor(d);
+		this.wireDayCellNavigation(cell, d, occs, virtual.length);
 		// Occurrences already have their own edit/delete context menu on
 		// their chip (wireOccurrenceElement below), so the cell's own right
 		// click only needs to offer jumping to the day view.
@@ -1574,6 +1790,11 @@ class CalendarView extends ItemView {
 			const chip = list.createDiv({ cls: "plain-calendar-event" });
 			chip.setText(eventLabel(occ.display, { withTime: true, isException: occ.kind === "exception" }));
 			this.wireOccurrenceElement(chip, occ);
+		}
+		for (const entry of virtual) {
+			const chip = list.createDiv({ cls: `plain-calendar-event plain-calendar-virtual-event plain-calendar-virtual-${entry.kind}` });
+			chip.setText(virtualEntryLabel(entry));
+			this.wireVirtualEntryElement(chip, entry);
 		}
 	}
 
@@ -1629,6 +1850,16 @@ class CalendarView extends ItemView {
 				const chip = col.createDiv({ cls: "plain-calendar-event" });
 				chip.setText(eventLabel(occ.display, { isException: occ.kind === "exception" }));
 				this.wireOccurrenceElement(chip, occ);
+			}
+			// Virtual entries have no time field (birthdays never do; a
+			// task's `due` has no time component either), so they always
+			// render in the all-day row, never the timed hour grid below.
+			for (const entry of this.virtualEntriesFor(d)) {
+				const chip = col.createDiv({
+					cls: `plain-calendar-event plain-calendar-virtual-event plain-calendar-virtual-${entry.kind}`,
+				});
+				chip.setText(virtualEntryLabel(entry));
+				this.wireVirtualEntryElement(chip, entry);
 			}
 			col.onclick = () => this.createEvent(d);
 		}
@@ -1721,11 +1952,13 @@ class CalendarView extends ItemView {
 				if (!belongsToMonth) cell.addClass("is-muted");
 				if (belongsToMonth && isSameDay(d, new Date())) cell.addClass("is-today");
 				const occs = this.occurrencesFor(d);
+				const virtual = this.virtualEntriesFor(d);
 				if (occs.length > 0) cell.addClass("has-events");
+				if (virtual.length > 0) cell.addClass("has-virtual-events");
 				cell.setText(String(d.getDate()));
 
-				this.wireDayCellNavigation(cell, d, occs);
-				cell.oncontextmenu = (e) => this.showDayContextMenu(e, d, occs);
+				this.wireDayCellNavigation(cell, d, occs, virtual.length);
+				cell.oncontextmenu = (e) => this.showDayContextMenu(e, d, occs, virtual);
 			}
 		}
 	}

@@ -125,6 +125,29 @@
 	background-color: var(--background-modifier-hover);
 }
 
+/* Virtual entries (birthdays from plain-contacts, tasks from plain-tasks):
+   read-only, so visually distinguished with a dashed border and muted text
+   instead of the solid chip used for this plugin's own events - clicking
+   opens the source note, never an edit dialog. */
+.plain-calendar-virtual-event {
+	background-color: transparent;
+	border: 1px dashed var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.plain-calendar-virtual-event:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.plain-calendar-virtual-birthday {
+	border-color: var(--color-pink, var(--text-accent));
+}
+
+.plain-calendar-virtual-task {
+	border-color: var(--color-cyan, var(--text-accent));
+}
+
 /* Day/week view: vertical 24h time grid */
 
 .plain-calendar-timegrid-wrap {
@@ -331,5 +354,18 @@
 	height: 4px;
 	border-radius: 50%;
 	background-color: var(--text-accent);
+	margin: 0 auto;
+}
+
+/* A day with only virtual entries (no real event) still gets a dot, just a
+   muted one instead of the accent-colored one above - has-events wins if
+   both are present, since ::after can only render one dot per cell. */
+.plain-calendar-mini-day.has-virtual-events:not(.has-events)::after {
+	content: "";
+	display: block;
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background-color: var(--text-faint);
 	margin: 0 auto;
 }
