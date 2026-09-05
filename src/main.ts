@@ -473,6 +473,7 @@ const TRANSLATIONS = {
 		errorSaveFailed: "Termin konnte nicht gespeichert werden",
 		errorDeleteFailed: "Termin konnte nicht gelöscht werden",
 		openCalendar: "Kalender öffnen",
+		openDayView: "Tagesansicht öffnen",
 		calendarViewName: "Kalender",
 		settingsFolderName: "Ordner für Termin-Notizen",
 		settingsFolderDesc: "Pfad relativ zum Vault, z. B. Calendar",
@@ -538,6 +539,7 @@ const TRANSLATIONS = {
 		errorSaveFailed: "Could not save event",
 		errorDeleteFailed: "Could not delete event",
 		openCalendar: "Open calendar",
+		openDayView: "Open day view",
 		calendarViewName: "Calendar",
 		settingsFolderName: "Folder for event notes",
 		settingsFolderDesc: "Path relative to the vault, e.g. Calendar",
@@ -1045,12 +1047,12 @@ class CalendarView extends ItemView {
 		}
 	}
 
-	private createEvent(date: Date, time?: string): Modal {
+	private createEvent(date: Date, time?: string) {
 		const suggestedEnd = time
 			? minutesToTimeLabel((parseTimeToMinutes(time) ?? 0) + DEFAULT_DURATION_MIN)
 			: "";
 
-		const modal = new NewEventModal(
+		new NewEventModal(
 			this.app,
 			{ date: toDateKey(date), time: time ?? "", end: suggestedEnd },
 			async (values) => {
@@ -1069,9 +1071,7 @@ class CalendarView extends ItemView {
 					new Notice(t("errorCreateFailed"));
 				}
 			}
-		);
-		modal.open();
-		return modal;
+		).open();
 	}
 
 	private async openEvent(file: TFile) {
@@ -1406,16 +1406,27 @@ class CalendarView extends ItemView {
 		menu.showAtMouseEvent(e);
 	}
 
-	// Year view's mini-day cells don't render a chip per occurrence (just a
-	// dot), so a right click needs to offer edit/delete for every occurrence
-	// on that day at once instead of targeting a single element.
-	private showDayContextMenu(e: MouseEvent, occs: Occurrence[]) {
-		if (occs.length === 0) return;
+	// Right click on a day cell (month view background, year view mini-day):
+	// always offers to jump to the day view, plus edit/delete for every
+	// occurrence on that date if there are any. Year view's mini-days don't
+	// render a chip per occurrence (just a dot), so this lists all of them
+	// rather than targeting one specific element like showEventContextMenu.
+	private showDayContextMenu(e: MouseEvent, d: Date, occs: Occurrence[]) {
 		e.preventDefault();
 		e.stopPropagation();
 		const menu = new Menu();
-		occs.forEach((occ, i) => {
-			if (i > 0) menu.addSeparator();
+		menu.addItem((item) =>
+			item
+				.setTitle(t("openDayView"))
+				.setIcon("calendar")
+				.onClick(() => {
+					this.anchor = d;
+					this.setMode("day");
+				})
+		);
+
+		occs.forEach((occ) => {
+			menu.addSeparator();
 			const label = eventLabel(occ.display, { withTime: true, isException: occ.kind === "exception" });
 			menu.addItem((item) =>
 				item
@@ -1526,28 +1537,20 @@ class CalendarView extends ItemView {
 
 	// Click creates a new event - unless the day already has several, where
 	// jumping straight to the day view is more useful than piling on more
-	// chips in an already-crowded cell. Double click always jumps to the day
-	// view regardless, undoing whatever the first click just did (no
-	// artificial delay: MouseEvent.detail already tells single and double
-	// clicks apart the instant each click fires, so single-click stays
-	// instant instead of waiting out a timeout to rule out a second click).
-	// Shared by month-view day cells and year-view mini-days.
+	// chips in an already-crowded cell. Right click (showDayContextMenu)
+	// always offers to jump to the day view regardless of occurrence count -
+	// a double-click can't do that reliably here, since the "New event"
+	// modal that a single click opens immediately covers the cell and
+	// swallows the second click before it arrives. Shared by month-view day
+	// cells and year-view mini-days.
 	private wireDayCellNavigation(cell: HTMLElement, d: Date, occs: Occurrence[]) {
-		const openDay = () => {
-			this.anchor = d;
-			this.setMode("day");
-		};
-
-		let pendingModal: Modal | null = null;
-		cell.onclick = (e) => {
-			if (e.detail > 1) {
-				pendingModal?.close();
-				pendingModal = null;
-				openDay();
-				return;
+		cell.onclick = () => {
+			if (occs.length > 1) {
+				this.anchor = d;
+				this.setMode("day");
+			} else {
+				this.createEvent(d);
 			}
-			if (occs.length > 1) openDay();
-			else pendingModal = this.createEvent(d);
 		};
 	}
 
@@ -1558,6 +1561,10 @@ class CalendarView extends ItemView {
 
 		const occs = this.occurrencesFor(d);
 		this.wireDayCellNavigation(cell, d, occs);
+		// Occurrences already have their own edit/delete context menu on
+		// their chip (wireOccurrenceElement below), so the cell's own right
+		// click only needs to offer jumping to the day view.
+		cell.oncontextmenu = (e) => this.showDayContextMenu(e, d, []);
 
 		const head = cell.createDiv({ cls: "plain-calendar-day-head" });
 		head.createSpan({ text: String(d.getDate()) });
@@ -1718,7 +1725,7 @@ class CalendarView extends ItemView {
 				cell.setText(String(d.getDate()));
 
 				this.wireDayCellNavigation(cell, d, occs);
-				cell.oncontextmenu = (e) => this.showDayContextMenu(e, occs);
+				cell.oncontextmenu = (e) => this.showDayContextMenu(e, d, occs);
 			}
 		}
 	}
