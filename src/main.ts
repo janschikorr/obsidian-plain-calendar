@@ -1522,17 +1522,50 @@ class CalendarView extends ItemView {
 		el.oncontextmenu = (e) => this.showEventContextMenu(e, occ);
 	}
 
+	// Click creates a new event - unless the day already has several, where
+	// jumping straight to the day view is more useful than piling on more
+	// chips in an already-crowded cell. Double click always jumps to the day
+	// view regardless. A short delay tells single from double clicks apart -
+	// without it, a double click would also fire the single-click action
+	// (create or navigate) before the second click/navigation lands. Shared
+	// by month-view day cells and year-view mini-days.
+	private wireDayCellNavigation(cell: HTMLElement, d: Date, occs: Occurrence[]) {
+		const openDay = () => {
+			this.anchor = d;
+			this.setMode("day");
+		};
+
+		let clickTimer: number | null = null;
+		cell.onclick = () => {
+			if (clickTimer !== null) return;
+			clickTimer = window.setTimeout(() => {
+				clickTimer = null;
+				if (occs.length > 1) openDay();
+				else this.createEvent(d);
+			}, 250);
+		};
+		cell.ondblclick = () => {
+			if (clickTimer !== null) {
+				window.clearTimeout(clickTimer);
+				clickTimer = null;
+			}
+			openDay();
+		};
+	}
+
 	private renderDayCell(parent: HTMLElement, d: Date, opts: { muted?: boolean } = {}) {
 		const cell = parent.createDiv({ cls: "plain-calendar-day" });
 		if (opts.muted) cell.addClass("is-muted");
 		if (isSameDay(d, new Date())) cell.addClass("is-today");
-		cell.onclick = () => this.createEvent(d);
+
+		const occs = this.occurrencesFor(d);
+		this.wireDayCellNavigation(cell, d, occs);
 
 		const head = cell.createDiv({ cls: "plain-calendar-day-head" });
 		head.createSpan({ text: String(d.getDate()) });
 
 		const list = cell.createDiv({ cls: "plain-calendar-day-events" });
-		for (const occ of this.occurrencesFor(d)) {
+		for (const occ of occs) {
 			const chip = list.createDiv({ cls: "plain-calendar-event" });
 			chip.setText(eventLabel(occ.display, { withTime: true, isException: occ.kind === "exception" }));
 			this.wireOccurrenceElement(chip, occ);
@@ -1686,26 +1719,7 @@ class CalendarView extends ItemView {
 				if (occs.length > 0) cell.addClass("has-events");
 				cell.setText(String(d.getDate()));
 
-				// Single click creates an event; double click still jumps to
-				// the day view. A short delay tells them apart - without it,
-				// a double click would also fire the single-click handler
-				// twice and open the new-event dialog before navigating away.
-				let clickTimer: number | null = null;
-				cell.onclick = () => {
-					if (clickTimer !== null) return;
-					clickTimer = window.setTimeout(() => {
-						clickTimer = null;
-						this.createEvent(d);
-					}, 250);
-				};
-				cell.ondblclick = () => {
-					if (clickTimer !== null) {
-						window.clearTimeout(clickTimer);
-						clickTimer = null;
-					}
-					this.anchor = d;
-					this.setMode("day");
-				};
+				this.wireDayCellNavigation(cell, d, occs);
 				cell.oncontextmenu = (e) => this.showDayContextMenu(e, occs);
 			}
 		}
