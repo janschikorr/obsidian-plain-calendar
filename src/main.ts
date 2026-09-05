@@ -1045,12 +1045,12 @@ class CalendarView extends ItemView {
 		}
 	}
 
-	private async createEvent(date: Date, time?: string) {
+	private createEvent(date: Date, time?: string): Modal {
 		const suggestedEnd = time
 			? minutesToTimeLabel((parseTimeToMinutes(time) ?? 0) + DEFAULT_DURATION_MIN)
 			: "";
 
-		new NewEventModal(
+		const modal = new NewEventModal(
 			this.app,
 			{ date: toDateKey(date), time: time ?? "", end: suggestedEnd },
 			async (values) => {
@@ -1069,7 +1069,9 @@ class CalendarView extends ItemView {
 					new Notice(t("errorCreateFailed"));
 				}
 			}
-		).open();
+		);
+		modal.open();
+		return modal;
 	}
 
 	private async openEvent(file: TFile) {
@@ -1525,31 +1527,27 @@ class CalendarView extends ItemView {
 	// Click creates a new event - unless the day already has several, where
 	// jumping straight to the day view is more useful than piling on more
 	// chips in an already-crowded cell. Double click always jumps to the day
-	// view regardless. A short delay tells single from double clicks apart -
-	// without it, a double click would also fire the single-click action
-	// (create or navigate) before the second click/navigation lands. Shared
-	// by month-view day cells and year-view mini-days.
+	// view regardless, undoing whatever the first click just did (no
+	// artificial delay: MouseEvent.detail already tells single and double
+	// clicks apart the instant each click fires, so single-click stays
+	// instant instead of waiting out a timeout to rule out a second click).
+	// Shared by month-view day cells and year-view mini-days.
 	private wireDayCellNavigation(cell: HTMLElement, d: Date, occs: Occurrence[]) {
 		const openDay = () => {
 			this.anchor = d;
 			this.setMode("day");
 		};
 
-		let clickTimer: number | null = null;
-		cell.onclick = () => {
-			if (clickTimer !== null) return;
-			clickTimer = window.setTimeout(() => {
-				clickTimer = null;
-				if (occs.length > 1) openDay();
-				else this.createEvent(d);
-			}, 250);
-		};
-		cell.ondblclick = () => {
-			if (clickTimer !== null) {
-				window.clearTimeout(clickTimer);
-				clickTimer = null;
+		let pendingModal: Modal | null = null;
+		cell.onclick = (e) => {
+			if (e.detail > 1) {
+				pendingModal?.close();
+				pendingModal = null;
+				openDay();
+				return;
 			}
-			openDay();
+			if (occs.length > 1) openDay();
+			else pendingModal = this.createEvent(d);
 		};
 	}
 
