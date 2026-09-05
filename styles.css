@@ -325,3 +325,56 @@
 	background-color: var(--text-accent);
 	margin: 0 auto;
 }
+
+/* Event dialogs (new/edit event, series scope choice) */
+
+.plain-calendar-modal {
+	width: 480px;
+}
+
+.plain-calendar-input-title {
+	font-size: var(--font-ui-medium);
+}
+
+.plain-calendar-form-row {
+	display: flex;
+	gap: var(--size-4-3);
+}
+
+.plain-calendar-form-row .setting-item {
+	flex: 1;
+	border: none;
+	padding: var(--size-4-2) 0 0 0;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--size-4-1);
+}
+
+.plain-calendar-form-row .setting-item-info {
+	margin-right: 0;
+}
+
+.plain-calendar-form-row .setting-item-control {
+	width: 100%;
+	justify-content: flex-start;
+}
+
+.plain-calendar-form-row .setting-item-control input {
+	width: 100%;
+}
+
+.plain-calendar-btn-delete {
+	margin-right: auto;
+}
+
+.plain-calendar-scope-modal .plain-calendar-scope-option {
+	border: 1px solid var(--background-modifier-border);
+	border-top: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	padding: var(--size-4-3);
+	margin-bottom: var(--size-4-2);
+}
+
+.plain-calendar-scope-modal .plain-calendar-scope-option .setting-item-name {
+	font-weight: 600;
+}

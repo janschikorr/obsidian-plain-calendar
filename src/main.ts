@@ -21,8 +21,8 @@ interface CalendarSettings {
 }
 
 const DEFAULT_SETTINGS: CalendarSettings = {
-	eventsFolder: "Kalender/Termine",
-	eventTag: "termin",
+	eventsFolder: "Calendar",
+	eventTag: "event",
 };
 
 type ViewMode = "day" | "week" | "month" | "year";
@@ -41,45 +41,44 @@ interface CalendarEvent {
 }
 
 // Frontmatter of an event note as it comes out of the metadata cache. Field
-// names mirror the actual YAML keys and are deliberately German, independent
-// of the UI language - this is the vault's data schema, see
+// names mirror the actual YAML keys - this is the vault's data schema, see
 // regeln/vorlagen/termin.md. Do not rename these without a migration: they
 // are read/written verbatim against notes that already exist.
 interface EventFrontmatter {
-	titel?: string;
+	title?: string;
 	tags?: string | string[];
-	datum?: string;
-	zeit?: string;
-	ende?: string;
-	ort?: string;
-	wiederholung?: string;
-	ausnahmen?: string[] | string;
-	serie?: string;
-	ersetzt?: string;
+	date?: string;
+	time?: string;
+	end?: string;
+	location?: string;
+	recurrence?: string;
+	excluded?: string[] | string;
+	series?: string;
+	replaces?: string;
 }
 
 function parseCalendarEvent(file: TFile, fm: EventFrontmatter, requiredTag: string): CalendarEvent | null {
-	if (!fm.datum) return null;
+	if (!fm.date) return null;
 	const tags = Array.isArray(fm.tags) ? fm.tags : fm.tags ? [fm.tags] : [];
 	if (requiredTag && !tags.includes(requiredTag)) return null;
 
-	const excludedDates = Array.isArray(fm.ausnahmen)
-		? fm.ausnahmen.map(String)
-		: fm.ausnahmen
-		? [String(fm.ausnahmen)]
+	const excludedDates = Array.isArray(fm.excluded)
+		? fm.excluded.map(String)
+		: fm.excluded
+		? [String(fm.excluded)]
 		: undefined;
 
 	return {
 		file,
-		title: fm.titel || file.basename,
-		date: String(fm.datum).slice(0, 10),
-		time: fm.zeit ? String(fm.zeit) : undefined,
-		end: fm.ende ? String(fm.ende) : undefined,
-		location: fm.ort ? String(fm.ort) : undefined,
-		recurrence: fm.wiederholung ? String(fm.wiederholung) : undefined,
+		title: fm.title || file.basename,
+		date: String(fm.date).slice(0, 10),
+		time: fm.time ? String(fm.time) : undefined,
+		end: fm.end ? String(fm.end) : undefined,
+		location: fm.location ? String(fm.location) : undefined,
+		recurrence: fm.recurrence ? String(fm.recurrence) : undefined,
 		excludedDates,
-		seriesPath: fm.serie ? String(fm.serie) : undefined,
-		replacesDate: fm.ersetzt ? String(fm.ersetzt).slice(0, 10) : undefined,
+		seriesPath: fm.series ? String(fm.series) : undefined,
+		replacesDate: fm.replaces ? String(fm.replaces).slice(0, 10) : undefined,
 	};
 }
 
@@ -419,8 +418,8 @@ function addYears(d: Date, n: number): Date {
 
 // UI language: German only when Obsidian's moment locale is "de", English
 // otherwise (not full i18n, just these two languages). The frontmatter field
-// names (titel/datum/zeit/ende/ort) are unaffected by this - that's data
-// schema, not UI text, see regeln/vorlagen/termin.md.
+// names (title/date/time/end/location/...) are unaffected by this - they're
+// the vault's data schema, not UI text, see regeln/vorlagen/termin.md.
 const TRANSLATIONS = {
 	de: {
 		day: "Tag",
@@ -434,7 +433,6 @@ const TRANSLATIONS = {
 		titleLabel: "Titel",
 		titlePlaceholder: "Kurzbeschreibung",
 		dateLabel: "Datum",
-		dateDesc: "YYYY-MM-DD",
 		timeLabel: "Zeit",
 		timeDesc: "HH:mm, leer = ganztägig",
 		endLabel: "Ende",
@@ -460,6 +458,8 @@ const TRANSLATIONS = {
 		recurrenceCountLabel: "Anzahl Wiederholungen",
 		create: "Anlegen",
 		save: "Speichern",
+		cancel: "Abbrechen",
+		select: "Auswählen",
 		delete: "Löschen",
 		openNote: "Notiz öffnen",
 		edit: "Bearbeiten",
@@ -476,13 +476,16 @@ const TRANSLATIONS = {
 		openCalendar: "Kalender öffnen",
 		calendarViewName: "Kalender",
 		settingsFolderName: "Ordner für Termin-Notizen",
-		settingsFolderDesc: "Pfad relativ zum Vault, z. B. Kalender/Termine",
+		settingsFolderDesc: "Pfad relativ zum Vault, z. B. Calendar",
 		settingsTagName: "Tag für Termine",
 		settingsTagDesc: "Frontmatter-Tag, der eine Notiz als Termin kennzeichnet",
 		scopeQuestionTitle: "Diese Änderung betrifft…",
 		scopeThisEvent: "Nur diesen Termin",
+		scopeThisEventDesc: "Erstellt eine Ausnahme, alle anderen Vorkommen der Serie bleiben unverändert.",
 		scopeThisAndFollowing: "Diesen und alle folgenden",
+		scopeThisAndFollowingDesc: "Teilt die Serie an diesem Datum, frühere Vorkommen bleiben unverändert.",
 		scopeSeries: "Die ganze Serie",
+		scopeSeriesDesc: "Ändert das Muster für alle Vorkommen der Serie.",
 	},
 	en: {
 		day: "Day",
@@ -496,7 +499,6 @@ const TRANSLATIONS = {
 		titleLabel: "Title",
 		titlePlaceholder: "Short description",
 		dateLabel: "Date",
-		dateDesc: "YYYY-MM-DD",
 		timeLabel: "Time",
 		timeDesc: "HH:mm, empty = all day",
 		endLabel: "End",
@@ -522,6 +524,8 @@ const TRANSLATIONS = {
 		recurrenceCountLabel: "Number of occurrences",
 		create: "Create",
 		save: "Save",
+		cancel: "Cancel",
+		select: "Select",
 		delete: "Delete",
 		openNote: "Open note",
 		edit: "Edit",
@@ -538,13 +542,16 @@ const TRANSLATIONS = {
 		openCalendar: "Open calendar",
 		calendarViewName: "Calendar",
 		settingsFolderName: "Folder for event notes",
-		settingsFolderDesc: "Path relative to the vault, e.g. Kalender/Termine",
+		settingsFolderDesc: "Path relative to the vault, e.g. Calendar",
 		settingsTagName: "Tag for events",
 		settingsTagDesc: "Frontmatter tag that marks a note as an event",
 		scopeQuestionTitle: "This change applies to…",
 		scopeThisEvent: "This event only",
+		scopeThisEventDesc: "Creates an exception; every other occurrence in the series stays unchanged.",
 		scopeThisAndFollowing: "This and all following events",
+		scopeThisAndFollowingDesc: "Splits the series at this date; earlier occurrences stay unchanged.",
 		scopeSeries: "The entire series",
+		scopeSeriesDesc: "Changes the pattern for every occurrence in the series.",
 	},
 } as const;
 
@@ -653,12 +660,10 @@ function renderRecurrenceDetails(container: HTMLElement, values: EventFormValues
 	});
 
 	if (values.recurrenceEndType === "until") {
-		new Setting(container)
-			.setName(t("recurrenceUntilLabel"))
-			.setDesc(t("dateDesc"))
-			.addText((text) =>
-				text.setValue(values.recurrenceUntil).onChange((v) => (values.recurrenceUntil = v.trim()))
-			);
+		new Setting(container).setName(t("recurrenceUntilLabel")).addText((text) => {
+			text.inputEl.type = "date";
+			text.setValue(values.recurrenceUntil).onChange((v) => (values.recurrenceUntil = v.trim()));
+		});
 	}
 
 	if (values.recurrenceEndType === "count") {
@@ -673,23 +678,33 @@ function renderRecurrenceDetails(container: HTMLElement, values: EventFormValues
 function buildEventFields(contentEl: HTMLElement, values: EventFormValues, opts: { showRecurrence?: boolean } = {}) {
 	new Setting(contentEl).setName(t("titleLabel")).addText((text) => {
 		text.setValue(values.title).setPlaceholder(t("titlePlaceholder")).onChange((v) => (values.title = v));
+		text.inputEl.addClass("plain-calendar-input-title");
 		text.inputEl.focus();
 	});
 
-	new Setting(contentEl)
-		.setName(t("dateLabel"))
-		.setDesc(t("dateDesc"))
-		.addText((text) => text.setValue(values.date).onChange((v) => (values.date = v.trim())));
+	const row = contentEl.createDiv({ cls: "plain-calendar-form-row" });
 
-	new Setting(contentEl)
+	new Setting(row)
+		.setName(t("dateLabel"))
+		.addText((text) => {
+			text.inputEl.type = "date";
+			text.setValue(values.date).onChange((v) => (values.date = v.trim()));
+		});
+
+	new Setting(row)
 		.setName(t("timeLabel"))
 		.setDesc(t("timeDesc"))
-		.addText((text) => text.setValue(values.time).onChange((v) => (values.time = v.trim())));
+		.addText((text) => {
+			text.inputEl.type = "time";
+			text.setValue(values.time).onChange((v) => (values.time = v.trim()));
+		});
 
-	new Setting(contentEl)
+	new Setting(row)
 		.setName(t("endLabel"))
-		.setDesc(t("endDesc"))
-		.addText((text) => text.setValue(values.end).onChange((v) => (values.end = v.trim())));
+		.addText((text) => {
+			text.inputEl.type = "time";
+			text.setValue(values.end).onChange((v) => (values.end = v.trim()));
+		});
 
 	new Setting(contentEl)
 		.setName(t("locationLabel"))
@@ -742,24 +757,27 @@ class NewEventModal extends Modal {
 	}
 
 	onOpen() {
-		const { contentEl } = this;
-		contentEl.createEl("h3", { text: t("newEvent") });
+		const { contentEl, modalEl } = this;
+		modalEl.addClass("plain-calendar-modal");
+		this.setTitle(t("newEvent"));
 		buildEventFields(contentEl, this.values);
 
-		new Setting(contentEl).addButton((btn) =>
-			btn
-				.setButtonText(t("create"))
-				.setCta()
-				.onClick(() => {
-					const error = validateEventFormValues(this.values);
-					if (error) {
-						new Notice(error);
-						return;
-					}
-					this.close();
-					this.onSubmit(this.values);
-				})
-		);
+		new Setting(contentEl)
+			.addButton((btn) => btn.setButtonText(t("cancel")).onClick(() => this.close()))
+			.addButton((btn) =>
+				btn
+					.setButtonText(t("create"))
+					.setCta()
+					.onClick(() => {
+						const error = validateEventFormValues(this.values);
+						if (error) {
+							new Notice(error);
+							return;
+						}
+						this.close();
+						this.onSubmit(this.values);
+					})
+			);
 	}
 
 	onClose() {
@@ -801,8 +819,9 @@ class EditEventModal extends Modal {
 	}
 
 	onOpen() {
-		const { contentEl } = this;
-		contentEl.createEl("h3", { text: t("editEvent") });
+		const { contentEl, modalEl } = this;
+		modalEl.addClass("plain-calendar-modal");
+		this.setTitle(t("editEvent"));
 		buildEventFields(contentEl, this.values, { showRecurrence: this.allowRecurrence });
 
 		new Setting(contentEl)
@@ -810,6 +829,7 @@ class EditEventModal extends Modal {
 				btn
 					.setButtonText(t("delete"))
 					.setWarning()
+					.setClass("plain-calendar-btn-delete")
 					.onClick(() => {
 						this.close();
 						this.onDelete();
@@ -821,6 +841,7 @@ class EditEventModal extends Modal {
 					this.onOpenNote();
 				})
 			)
+			.addButton((btn) => btn.setButtonText(t("cancel")).onClick(() => this.close()))
 			.addButton((btn) =>
 				btn
 					.setButtonText(t("save"))
@@ -855,21 +876,30 @@ class ScopeChoiceModal extends Modal {
 	}
 
 	onOpen() {
-		const { contentEl } = this;
-		contentEl.createEl("h3", { text: t("scopeQuestionTitle") });
+		const { contentEl, modalEl } = this;
+		modalEl.addClass("plain-calendar-modal", "plain-calendar-scope-modal");
+		this.setTitle(t("scopeQuestionTitle"));
 
 		const choose = (scope: "this" | "following" | "series") => {
 			this.close();
 			this.onChoose(scope);
 		};
 
-		new Setting(contentEl).addButton((btn) =>
-			btn.setButtonText(t("scopeThisEvent")).setCta().onClick(() => choose("this"))
-		);
-		new Setting(contentEl).addButton((btn) =>
-			btn.setButtonText(t("scopeThisAndFollowing")).onClick(() => choose("following"))
-		);
-		new Setting(contentEl).addButton((btn) => btn.setButtonText(t("scopeSeries")).onClick(() => choose("series")));
+		new Setting(contentEl)
+			.setClass("plain-calendar-scope-option")
+			.setName(t("scopeThisEvent"))
+			.setDesc(t("scopeThisEventDesc"))
+			.addButton((btn) => btn.setButtonText(t("select")).setCta().onClick(() => choose("this")));
+		new Setting(contentEl)
+			.setClass("plain-calendar-scope-option")
+			.setName(t("scopeThisAndFollowing"))
+			.setDesc(t("scopeThisAndFollowingDesc"))
+			.addButton((btn) => btn.setButtonText(t("select")).onClick(() => choose("following")));
+		new Setting(contentEl)
+			.setClass("plain-calendar-scope-option")
+			.setName(t("scopeSeries"))
+			.setDesc(t("scopeSeriesDesc"))
+			.addButton((btn) => btn.setButtonText(t("select")).onClick(() => choose("series")));
 	}
 
 	onClose() {
@@ -997,18 +1027,18 @@ class CalendarView extends ItemView {
 
 		let frontmatter =
 			`---\n` +
-			`titel: ${fields.title}\n` +
+			`title: ${fields.title}\n` +
 			`tags:\n  - ${this.plugin.settings.eventTag}\n` +
-			`datum: ${fields.date}\n` +
-			`zeit: ${fields.time ?? ""}\n` +
-			`ende: ${fields.end ?? ""}\n` +
-			`ort: ${fields.location ?? ""}\n`;
-		if (fields.recurrence !== undefined) frontmatter += `wiederholung: ${fields.recurrence}\n`;
+			`date: ${fields.date}\n` +
+			`time: ${fields.time ?? ""}\n` +
+			`end: ${fields.end ?? ""}\n` +
+			`location: ${fields.location ?? ""}\n`;
+		if (fields.recurrence !== undefined) frontmatter += `recurrence: ${fields.recurrence}\n`;
 		if (fields.excludedDates?.length) {
-			frontmatter += `ausnahmen:\n${fields.excludedDates.map((d) => `  - ${d}`).join("\n")}\n`;
+			frontmatter += `excluded:\n${fields.excludedDates.map((d) => `  - ${d}`).join("\n")}\n`;
 		}
-		if (fields.seriesPath) frontmatter += `serie: ${fields.seriesPath}\n`;
-		if (fields.replacesDate) frontmatter += `ersetzt: ${fields.replacesDate}\n`;
+		if (fields.seriesPath) frontmatter += `series: ${fields.seriesPath}\n`;
+		if (fields.replacesDate) frontmatter += `replaces: ${fields.replacesDate}\n`;
 		frontmatter += `dateCreated: ${today}\ndateModified: ${today}\n---\n\n`;
 
 		const file = await this.app.vault.create(path, frontmatter);
@@ -1105,12 +1135,12 @@ class CalendarView extends ItemView {
 				this.updateFrontmatter(
 					ev.file,
 					(fm) => {
-						fm.titel = values.title;
-						fm.datum = values.date;
-						fm.zeit = values.time;
-						fm.ende = values.end;
-						fm.ort = values.location;
-						fm.wiederholung = combineRecurrence(values);
+						fm.title = values.title;
+						fm.date = values.date;
+						fm.time = values.time;
+						fm.end = values.end;
+						fm.location = values.location;
+						fm.recurrence = combineRecurrence(values);
 						fm.dateModified = toDateKey(new Date());
 					},
 					t("errorSaveFailed")
@@ -1140,11 +1170,11 @@ class CalendarView extends ItemView {
 					this.updateFrontmatter(
 						occ.display.file,
 						(fm) => {
-							fm.titel = values.title;
-							fm.datum = values.date;
-							fm.zeit = values.time;
-							fm.ende = values.end;
-							fm.ort = values.location;
+							fm.title = values.title;
+							fm.date = values.date;
+							fm.time = values.time;
+							fm.end = values.end;
+							fm.location = values.location;
 							fm.dateModified = toDateKey(new Date());
 						},
 						t("errorSaveFailed")
@@ -1181,10 +1211,10 @@ class CalendarView extends ItemView {
 
 	private async addExclusion(master: CalendarEvent, date: string) {
 		await this.app.fileManager.processFrontMatter(master.file, (fm) => {
-			const list: string[] = Array.isArray(fm.ausnahmen) ? fm.ausnahmen : fm.ausnahmen ? [fm.ausnahmen] : [];
+			const list: string[] = Array.isArray(fm.excluded) ? fm.excluded : fm.excluded ? [fm.excluded] : [];
 			if (!list.includes(date)) list.push(date);
 			list.sort();
-			fm.ausnahmen = list;
+			fm.excluded = list;
 			fm.dateModified = toDateKey(new Date());
 		});
 		await this.waitForMetadata(master.file);
@@ -1218,12 +1248,12 @@ class CalendarView extends ItemView {
 				this.updateFrontmatter(
 					master.file,
 					(fm) => {
-						fm.titel = values.title;
-						fm.datum = values.date;
-						fm.zeit = values.time;
-						fm.ende = values.end;
-						fm.ort = values.location;
-						fm.wiederholung = combineRecurrence(values);
+						fm.title = values.title;
+						fm.date = values.date;
+						fm.time = values.time;
+						fm.end = values.end;
+						fm.location = values.location;
+						fm.recurrence = combineRecurrence(values);
 						fm.dateModified = toDateKey(new Date());
 					},
 					t("errorSaveFailed")
@@ -1264,8 +1294,8 @@ class CalendarView extends ItemView {
 		if (idx === null || idx <= 0) return null;
 
 		await this.app.fileManager.processFrontMatter(master.file, (fm) => {
-			fm.wiederholung = buildRecurrenceRuleString({ freq: rule.freq, interval: rule.interval, count: idx });
-			fm.ausnahmen = (master.excludedDates ?? []).filter((d) => d < splitDate);
+			fm.recurrence = buildRecurrenceRuleString({ freq: rule.freq, interval: rule.interval, count: idx });
+			fm.excluded = (master.excludedDates ?? []).filter((d) => d < splitDate);
 			fm.dateModified = toDateKey(new Date());
 		});
 		await this.waitForMetadata(master.file);
@@ -1290,7 +1320,7 @@ class CalendarView extends ItemView {
 		for (const exc of exceptions) {
 			if ((exc.replacesDate ?? "") >= splitDate) {
 				await this.app.fileManager.processFrontMatter(exc.file, (fm) => {
-					fm.serie = newFile.path;
+					fm.series = newFile.path;
 					fm.dateModified = toDateKey(new Date());
 				});
 				await this.waitForMetadata(exc.file);
@@ -1317,12 +1347,12 @@ class CalendarView extends ItemView {
 					this.updateFrontmatter(
 						newMaster.file,
 						(fm) => {
-							fm.titel = values.title;
-							fm.datum = values.date;
-							fm.zeit = values.time;
-							fm.ende = values.end;
-							fm.ort = values.location;
-							fm.wiederholung = combineRecurrence(values);
+							fm.title = values.title;
+							fm.date = values.date;
+							fm.time = values.time;
+							fm.end = values.end;
+							fm.location = values.location;
+							fm.recurrence = combineRecurrence(values);
 							fm.dateModified = toDateKey(new Date());
 						},
 						t("errorSaveFailed")
@@ -1348,8 +1378,8 @@ class CalendarView extends ItemView {
 		}
 		try {
 			await this.app.fileManager.processFrontMatter(master.file, (fm) => {
-				fm.wiederholung = buildRecurrenceRuleString({ freq: rule.freq, interval: rule.interval, count: idx });
-				fm.ausnahmen = (master.excludedDates ?? []).filter((d) => d < occ.date);
+				fm.recurrence = buildRecurrenceRuleString({ freq: rule.freq, interval: rule.interval, count: idx });
+				fm.excluded = (master.excludedDates ?? []).filter((d) => d < occ.date);
 				fm.dateModified = toDateKey(new Date());
 			});
 			await this.waitForMetadata(master.file);
