@@ -22,17 +22,29 @@ Existing calendar plugins tend to come bundled with task management, pomodoro ti
 
 ## 📦 Installation
 
-### Via BRAT (recommended)
+Plain Calendar is intentionally small and not in Obsidian's community plugin store, so it's installed either through BRAT or by hand.
 
-1. Install the community plugin **BRAT** (*Obsidian42 - BRAT*).
-2. In BRAT, choose **Add Beta plugin** and enter `janschikorr/obsidian-plain-calendar`.
-3. Enable **Plain Calendar** under Settings → Community plugins.
+> **Requirements:** Obsidian 1.12.0 or newer.
 
-### Manual
+### 🚀 Via BRAT (recommended)
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/janschikorr/obsidian-plain-calendar/releases/latest).
-2. Copy them into `<your vault>/.obsidian/plugins/plain-calendar/`.
-3. Enable **Plain Calendar** under Settings → Community plugins.
+BRAT auto-updates the plugin whenever a new release comes out, so you don't have to repeat the manual steps below.
+
+1. Open **Settings → Community plugins → Browse**, search for **BRAT** (*Obsidian42 - BRAT*), install it, and enable it.
+2. Open the command palette (`Ctrl/Cmd + P`) and run **BRAT: Add a beta plugin for testing**.
+3. Paste the repository `janschikorr/obsidian-plain-calendar` (or the full URL `https://github.com/janschikorr/obsidian-plain-calendar`) and confirm.
+4. Go to **Settings → Community plugins** and enable **Plain Calendar**.
+
+### 🛠️ Manual
+
+Use this if you don't want BRAT installed, or want to pin a specific version.
+
+1. Open the [releases page](https://github.com/janschikorr/obsidian-plain-calendar/releases) and download `main.js`, `manifest.json`, and `styles.css` from the release you want (usually [the latest](https://github.com/janschikorr/obsidian-plain-calendar/releases/latest)).
+2. In your vault, create the folder `.obsidian/plugins/plain-calendar/` if it doesn't exist yet, and copy the three files into it.
+3. Reload Obsidian (or **Settings → Community plugins → reload**) so it picks up the new plugin folder.
+4. Go to **Settings → Community plugins** and enable **Plain Calendar**.
+
+Updating later means repeating all four steps with the new release's files.
 
 ## 🖱️ Usage
 
