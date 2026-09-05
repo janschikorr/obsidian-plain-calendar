@@ -1499,10 +1499,10 @@ class CalendarView extends ItemView {
 		const cell = parent.createDiv({ cls: "plain-calendar-day" });
 		if (opts.muted) cell.addClass("is-muted");
 		if (isSameDay(d, new Date())) cell.addClass("is-today");
+		cell.onclick = () => this.createEvent(d);
 
 		const head = cell.createDiv({ cls: "plain-calendar-day-head" });
 		head.createSpan({ text: String(d.getDate()) });
-		head.onclick = () => this.createEvent(d);
 
 		const list = cell.createDiv({ cls: "plain-calendar-day-events" });
 		for (const occ of this.occurrencesFor(d)) {

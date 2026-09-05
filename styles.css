@@ -84,6 +84,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: var(--size-4-1);
+	cursor: pointer;
 }
 
 .plain-calendar-day.is-muted {
@@ -99,7 +100,6 @@
 }
 
 .plain-calendar-day-head {
-	cursor: pointer;
 	font-size: var(--font-ui-small);
 }
 
