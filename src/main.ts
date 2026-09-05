@@ -1434,12 +1434,13 @@ class CalendarView extends ItemView {
 		const toolbar = container.createDiv({ cls: "plain-calendar-toolbar" });
 
 		const nav = toolbar.createDiv({ cls: "plain-calendar-nav" });
-		nav.createEl("button", { text: "‹" }).onclick = () => this.navigate(-1);
-		nav.createEl("button", { text: t("today") }).onclick = () => this.goToday();
-		nav.createEl("button", { text: "›" }).onclick = () => this.navigate(1);
+		const navPill = nav.createDiv({ cls: "plain-calendar-pill" });
+		navPill.createEl("button", { text: "‹" }).onclick = () => this.navigate(-1);
+		navPill.createEl("button", { text: t("today") }).onclick = () => this.goToday();
+		navPill.createEl("button", { text: "›" }).onclick = () => this.navigate(1);
 		nav.createEl("span", { cls: "plain-calendar-title", text: this.titleFor() });
 
-		const modes = toolbar.createDiv({ cls: "plain-calendar-modes" });
+		const modes = toolbar.createDiv({ cls: "plain-calendar-pill" });
 		(
 			[
 				["day", t("day")],

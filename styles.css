@@ -30,25 +30,33 @@
 	gap: var(--size-4-2);
 }
 
-.plain-calendar-nav button {
-	cursor: pointer;
-}
-
 .plain-calendar-title {
 	font-weight: 600;
 	margin-left: var(--size-4-2);
 }
 
-.plain-calendar-modes {
+/* Pill: a segmented control with separated inner values, laid out
+   horizontally (day/week/month/year mode switch, prev/today/next nav) */
+.plain-calendar-pill {
 	display: flex;
-	gap: var(--size-4-1);
+	align-items: stretch;
+	background-color: var(--background-modifier-border);
+	border-radius: 999px;
+	gap: 1px;
+	overflow: hidden;
 }
 
-.plain-calendar-modes button {
+.plain-calendar-pill button {
 	cursor: pointer;
+	border: none;
+	border-radius: 0;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	box-shadow: none;
+	margin: 0;
 }
 
-.plain-calendar-modes button.is-active {
+.plain-calendar-pill button.is-active {
 	background-color: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
