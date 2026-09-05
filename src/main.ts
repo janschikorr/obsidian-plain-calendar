@@ -434,9 +434,8 @@ const TRANSLATIONS = {
 		titlePlaceholder: "Kurzbeschreibung",
 		dateLabel: "Datum",
 		timeLabel: "Zeit",
-		timeDesc: "HH:mm, leer = ganztägig",
+		timeDesc: "Leer = ganztägig",
 		endLabel: "Ende",
-		endDesc: "HH:mm, optional",
 		locationLabel: "Ort",
 		recurrenceLabel: "Wiederholung",
 		recurrenceNone: "Keine",
@@ -500,9 +499,8 @@ const TRANSLATIONS = {
 		titlePlaceholder: "Short description",
 		dateLabel: "Date",
 		timeLabel: "Time",
-		timeDesc: "HH:mm, empty = all day",
+		timeDesc: "Empty = all day",
 		endLabel: "End",
-		endDesc: "HH:mm, optional",
 		locationLabel: "Location",
 		recurrenceLabel: "Repeat",
 		recurrenceNone: "None",
@@ -678,20 +676,17 @@ function renderRecurrenceDetails(container: HTMLElement, values: EventFormValues
 function buildEventFields(contentEl: HTMLElement, values: EventFormValues, opts: { showRecurrence?: boolean } = {}) {
 	new Setting(contentEl).setName(t("titleLabel")).addText((text) => {
 		text.setValue(values.title).setPlaceholder(t("titlePlaceholder")).onChange((v) => (values.title = v));
-		text.inputEl.addClass("plain-calendar-input-title");
 		text.inputEl.focus();
 	});
 
-	const row = contentEl.createDiv({ cls: "plain-calendar-form-row" });
-
-	new Setting(row)
+	new Setting(contentEl)
 		.setName(t("dateLabel"))
 		.addText((text) => {
 			text.inputEl.type = "date";
 			text.setValue(values.date).onChange((v) => (values.date = v.trim()));
 		});
 
-	new Setting(row)
+	new Setting(contentEl)
 		.setName(t("timeLabel"))
 		.setDesc(t("timeDesc"))
 		.addText((text) => {
@@ -699,7 +694,7 @@ function buildEventFields(contentEl: HTMLElement, values: EventFormValues, opts:
 			text.setValue(values.time).onChange((v) => (values.time = v.trim()));
 		});
 
-	new Setting(row)
+	new Setting(contentEl)
 		.setName(t("endLabel"))
 		.addText((text) => {
 			text.inputEl.type = "time";
@@ -757,8 +752,7 @@ class NewEventModal extends Modal {
 	}
 
 	onOpen() {
-		const { contentEl, modalEl } = this;
-		modalEl.addClass("plain-calendar-modal");
+		const { contentEl } = this;
 		this.setTitle(t("newEvent"));
 		buildEventFields(contentEl, this.values);
 
@@ -819,8 +813,7 @@ class EditEventModal extends Modal {
 	}
 
 	onOpen() {
-		const { contentEl, modalEl } = this;
-		modalEl.addClass("plain-calendar-modal");
+		const { contentEl } = this;
 		this.setTitle(t("editEvent"));
 		buildEventFields(contentEl, this.values, { showRecurrence: this.allowRecurrence });
 
@@ -829,7 +822,6 @@ class EditEventModal extends Modal {
 				btn
 					.setButtonText(t("delete"))
 					.setWarning()
-					.setClass("plain-calendar-btn-delete")
 					.onClick(() => {
 						this.close();
 						this.onDelete();
@@ -876,8 +868,7 @@ class ScopeChoiceModal extends Modal {
 	}
 
 	onOpen() {
-		const { contentEl, modalEl } = this;
-		modalEl.addClass("plain-calendar-modal", "plain-calendar-scope-modal");
+		const { contentEl } = this;
 		this.setTitle(t("scopeQuestionTitle"));
 
 		const choose = (scope: "this" | "following" | "series") => {
@@ -886,17 +877,14 @@ class ScopeChoiceModal extends Modal {
 		};
 
 		new Setting(contentEl)
-			.setClass("plain-calendar-scope-option")
 			.setName(t("scopeThisEvent"))
 			.setDesc(t("scopeThisEventDesc"))
 			.addButton((btn) => btn.setButtonText(t("select")).setCta().onClick(() => choose("this")));
 		new Setting(contentEl)
-			.setClass("plain-calendar-scope-option")
 			.setName(t("scopeThisAndFollowing"))
 			.setDesc(t("scopeThisAndFollowingDesc"))
 			.addButton((btn) => btn.setButtonText(t("select")).onClick(() => choose("following")));
 		new Setting(contentEl)
-			.setClass("plain-calendar-scope-option")
 			.setName(t("scopeSeries"))
 			.setDesc(t("scopeSeriesDesc"))
 			.addButton((btn) => btn.setButtonText(t("select")).onClick(() => choose("series")));
