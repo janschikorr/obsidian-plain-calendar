@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.3
+
+- Fixed: month view day tiles now have a fixed height instead of growing with the number of events - overflowing event text is truncated with an ellipsis instead of expanding the tile
+
 ## 1.3.2
 
 - Removed Obsidian's native per-pane header (back/forward history arrows, the view title, and the "..." more-options menu) from the calendar view - it added no value on a static, non-navigable view
