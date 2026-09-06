@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2
+
+- Removed Obsidian's native per-pane header (back/forward history arrows, the view title, and the "..." more-options menu) from the calendar view - it added no value on a static, non-navigable view
+
 ## 1.3.1
 
 - Added: the day/week/month/year view mode now persists across closing/reopening the view and restarting Obsidian, instead of always resetting to "week"
