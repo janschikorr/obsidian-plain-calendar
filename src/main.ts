@@ -1688,7 +1688,13 @@ class CalendarView extends ItemView {
 	}
 
 	private render() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		// Render straight into containerEl (not children[1]) so Obsidian's
+		// native per-pane header - back/forward history arrows, the
+		// getDisplayText() title, and the "..." more-options menu - never gets
+		// drawn in the first place. Same approach Plain Contacts uses; none of
+		// that chrome adds value here since this view is a single static
+		// destination, not something you navigate through.
+		const container = this.containerEl as HTMLElement;
 		container.empty();
 		container.addClass("plain-calendar-view");
 
