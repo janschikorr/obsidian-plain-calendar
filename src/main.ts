@@ -15,17 +15,23 @@ import {
 
 const VIEW_TYPE_CALENDAR = "plain-calendar-view";
 
+type ViewMode = "day" | "week" | "month" | "year";
+
 interface CalendarSettings {
 	eventsFolder: string;
 	eventTag: string;
+	// Which of day/week/month/year the calendar view was last showing.
+	// Persisted so the view reopens in the same mode instead of always
+	// resetting to "week" - the anchor date itself is deliberately NOT
+	// persisted here, CalendarView.anchor always starts at "today" on open.
+	viewMode: ViewMode;
 }
 
 const DEFAULT_SETTINGS: CalendarSettings = {
 	eventsFolder: "Calendar",
 	eventTag: "event",
+	viewMode: "week",
 };
-
-type ViewMode = "day" | "week" | "month" | "year";
 
 interface CalendarEvent {
 	file: TFile;
@@ -990,7 +996,7 @@ class ScopeChoiceModal extends Modal {
 
 class CalendarView extends ItemView {
 	plugin: PlainCalendarPlugin;
-	mode: ViewMode = "week";
+	mode: ViewMode;
 	anchor: Date = new Date();
 	private events: CalendarEvent[] = [];
 	private seriesIndex: SeriesIndex = { exceptionsBySeriesDate: new Map(), exceptionsBySeries: new Map(), mastersByPath: new Map() };
@@ -1003,6 +1009,7 @@ class CalendarView extends ItemView {
 	constructor(leaf: WorkspaceLeaf, plugin: PlainCalendarPlugin) {
 		super(leaf);
 		this.plugin = plugin;
+		this.mode = plugin.settings.viewMode;
 	}
 
 	getViewType() {
@@ -1660,6 +1667,10 @@ class CalendarView extends ItemView {
 	private setMode(mode: ViewMode) {
 		this.mode = mode;
 		this.render();
+		if (this.plugin.settings.viewMode !== mode) {
+			this.plugin.settings.viewMode = mode;
+			void this.plugin.saveSettings();
+		}
 	}
 
 	private navigate(dir: 1 | -1) {
