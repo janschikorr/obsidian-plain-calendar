@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.4
+
+- Fixed: in day/week view, all-day entries with long titles overflowed their own day column and visually bled into neighbouring days instead of being truncated with an ellipsis
+
 ## 1.3.3
 
 - Fixed: month view day tiles now have a fixed height instead of growing with the number of events - overflowing event text is truncated with an ellipsis instead of expanding the tile
